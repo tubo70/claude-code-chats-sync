@@ -1,0 +1,66 @@
+{
+  "name": "claude-code-chats-sync",
+  "displayName": "Claude Code Chats Sync",
+  "description": "Sync Claude Code chat sessions within your project",
+  "version": "0.0.1",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeCodeSync.initialize",
+        "title": "Initialize Claude Code Chats Sync",
+        "category": "Claude Code Chats Sync"
+      },
+      {
+        "command": "claudeCodeSync.openFolder",
+        "title": "Open Claude Code Chats Folder",
+        "category": "Claude Code Chats Sync"
+      },
+      {
+        "command": "claudeCodeSync.checkStatus",
+        "title": "Check Claude Code Chats Sync Status",
+        "category": "Claude Code Chats Sync"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Code Chats Sync",
+      "properties": {
+        "claudeCodeSync.historyFolderName": {
+          "type": "string",
+          "default": ".claudeCodeSessions",
+          "description": "Name of the folder to store Claude Code conversation history"
+        },
+        "claudeCodeSync.autoInitialize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically initialize sync when opening a workspace"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0"
+  }
+}

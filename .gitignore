@@ -1,0 +1,9 @@
+node_modules
+.vscode-test/
+*.vsix
+out/
+dist/
+
+# Claude Code chat sessions are included in version control
+# Uncomment the line below to exclude them:
+# .claudeCodeSessions/
