@@ -4,6 +4,26 @@
   "description": "Sync Claude Code chat sessions within your project",
   "version": "0.0.1",
   "publisher": "tubo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tubo70/claude-code-sync-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tubo70/claude-code-sync-extension/issues"
+  },
+  "homepage": "https://github.com/tubo70/claude-code-sync-extension#readme",
+  "keywords": [
+    "claude",
+    "ai",
+    "sync",
+    "chat",
+    "anthropic",
+    "history",
+    "chats",
+    "conversation"
+  ],
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },

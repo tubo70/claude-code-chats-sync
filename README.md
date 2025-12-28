@@ -1,5 +1,10 @@
 # Claude Code Chats Sync
 
+[![Version](https://img.shields.io/visual-studio-marketplace/v/tubo.claude-code-chats-sync)](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/tubo.claude-code-chats-sync)](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/tubo.claude-code-chats-sync)](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
+[![License](https://img.shields.io/github/license/tubo70/claude-code-sync-extension)](LICENSE)
+
 A VSCode extension that syncs Claude Code chat sessions within your project directory, making it easy to version control and share across machines.
 
 ## Features
@@ -29,6 +34,15 @@ Your Project/
 
 ## Installation
 
+### From VSCode Marketplace
+
+1. Open VSCode
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "Claude Code Chats Sync"
+4. Click Install
+
+[Marketplace Link](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
+
 ### From Source
 
 1. Clone this repository
@@ -41,10 +55,6 @@ Your Project/
    npm run compile
    ```
 4. Press F5 in VSCode to launch the extension in debug mode
-
-### From VSCode Marketplace (Coming Soon)
-
-Search for "Claude Code Chats Sync" in the VSCode extensions marketplace.
 
 ## Usage
 
@@ -157,7 +167,7 @@ Press F5 in VSCode to launch the extension in a new VSCode window (Extension Dev
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) file for details
 
 ## Contributing
 
@@ -166,3 +176,10 @@ Contributions are welcome! Please open an issue or submit a pull request.
 ## Credits
 
 Created to solve the problem of syncing Claude Code conversation history across machines and projects.
+
+## Links
+
+- [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
+- [GitHub Repository](https://github.com/tubo70/claude-code-sync-extension)
+- [Issue Tracker](https://github.com/tubo70/claude-code-sync-extension/issues)
+- [Changelog](CHANGELOG.md)
