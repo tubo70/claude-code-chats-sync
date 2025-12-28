@@ -7,13 +7,60 @@
 
 A VSCode extension that syncs Claude Code chat sessions within your project directory, making it easy to version control and share across machines.
 
+## ⚠️ Important: Configure API Keys Securely
+
+**HIGHLY RECOMMENDED**: Configure your Claude Code API key using environment variables **before** using this extension. This prevents API keys from being written to session files entirely, which is the most secure approach.
+
+### Quick Setup
+
+**Linux/macOS** - Add to your shell configuration (`~/.bashrc`, `~/.zshrc`, etc.):
+```bash
+export ANTHROPIC_AUTH_TOKEN="sk-ant-..."
+export ANTHROPIC_BASE_URL="https://api.example.com"  # Optional: for third-party API
+```
+
+**Windows** - Set environment variables:
+
+**Temporary (current session only):**
+```powershell
+# Command Prompt
+set ANTHROPIC_AUTH_TOKEN=sk-ant-...
+set ANTHROPIC_BASE_URL=https://api.example.com
+
+# PowerShell
+$env:ANTHROPIC_AUTH_TOKEN="sk-ant-..."
+$env:ANTHROPIC_BASE_URL="https://api.example.com"
+```
+
+**Permanent (User-level)** - Run Command Prompt as Administrator:
+```cmd
+setx ANTHROPIC_AUTH_TOKEN "sk-ant-..."
+setx ANTHROPIC_BASE_URL "https://api.example.com"
+```
+
+**Permanent (System-level)** - Run Command Prompt as Administrator:
+```cmd
+setx ANTHROPIC_AUTH_TOKEN "sk-ant-..." /M
+setx ANTHROPIC_BASE_URL "https://api.example.com" /M
+```
+
+**GUI Method**:
+1. Press `Win + R`, type `sysdm.cpl`, press Enter
+2. Go to the "Advanced" tab
+3. Click "Environment Variables"
+4. Add under "User variables" (for current user) or "System variables" (for all users)
+5. Restart VSCode to apply changes
+
+**Why this matters**: Session files store your entire conversation history, including API keys if configured in settings. Using environment variables keeps your credentials secure and out of version control.
+
 ## Features
 
 - 🔄 **Auto-sync**: Automatically creates a symlink from Claude Code's local storage to your project folder
 - 📁 **Project-local history**: Chat sessions are stored in your project, not in user home directory
+- 🔒 **Sensitive data protection**: Automatically cleans API keys before committing to Git
 - 🎯 **One-click setup**: Initialize sync with a single command
 - 📊 **Status tracking**: See sync status and session count in the status bar
-- 🌳 **Git-friendly**: Automatically adds history folder to `.gitignore`
+- 🌳 **Git-friendly**: Configures Git filters for safe version control
 - 🔧 **Cross-platform**: Works on Windows, macOS, and Linux
 
 ## How It Works
@@ -66,13 +113,18 @@ Your Project/
 4. The extension will:
    - Create a `.claudeCodeSessions/` folder in your project
    - Create a symlink in `~/.claude/projects/`
-   - Add `.claudeCodeSessions/` to `.gitignore`
+   - Configure Git filter for automatic sensitive data cleaning
+   - Add `.claudeCodeSessions/` to `.gitignore` (commented by default)
+
+**Note:** If you have existing Claude Code session history for this project, you'll be prompted to migrate it to your project folder.
 
 ### Commands
 
-- **Initialize Claude Code Chats Sync**: Set up the symlink for the current project
+- **Initialize Claude Code Chats Sync**: Set up the symlink and configure Git filter for safe sharing
 - **Open Claude Code History Folder**: Open the history folder in your file manager
 - **Check Claude Code Chats Sync Status**: Display sync status and session count
+- **Setup Git Filter for Auto-Cleaning**: Configure Git to automatically remove API keys on commit
+- **Clean Sensitive Data from Session Files**: Manually clean all API keys from session files
 
 ### Status Bar
 
@@ -96,27 +148,85 @@ You can configure the extension in your VSCode settings:
 
 ## Version Control
 
-By default, the extension adds the history folder to `.gitignore` to avoid committing conversation history.
+> ⚠️ **SECURITY WARNING**: Before adding `.claudeCodeSessions/` to Git, be aware that session files may contain sensitive information including:
+> - API keys and authentication tokens
+> - Proprietary code and business logic
+> - Private conversations and internal discussions
+> - System paths and environment details
+>
+> While this extension provides tools to clean API keys, **no automated cleaning is 100% complete**. Only commit these files if you fully understand and accept the security risks. The safest approach is to keep `.claudeCodeSessions/` in your `.gitignore`.
 
-### If you want to commit history:
+The extension automatically configures Git filters to protect sensitive information when committing chat sessions.
 
-1. Remove the ignore rule from `.gitignore`:
-   ```
-   # .claudeCodeSessions/
-   ```
+### API Key Configuration Options
 
-2. Commit the folder:
-   ```bash
-   git add .claudeCodeSessions/
-   git commit -m "Add Claude Code conversation history"
-   ```
+**Option 1: Use Environment Variables (Recommended)**
+
+Configure Claude Code to use API keys from environment variables, preventing them from appearing in session files entirely:
+
+```bash
+# Linux/macOS
+export ANTHROPIC_AUTH_TOKEN="sk-ant-..."
+export ANTHROPIC_BASE_URL="https://api.example.com"  # Optional: for third-party API
+
+# Windows
+set ANTHROPIC_AUTH_TOKEN=sk-ant-...
+set ANTHROPIC_BASE_URL=https://api.example.com
+```
+
+This is the most secure approach as API keys never touch your session files. Set `ANTHROPIC_BASE_URL` if you're using a third-party API endpoint.
+
+**Option 2: Use Git Filter**
+
+If you store API keys in configuration files, the extension's Git filter automatically cleans them on commit.
+
+### Automatic Sensitive Data Protection
+
+When you initialize the extension, it automatically sets up a Git filter that:
+- ✅ Removes API keys from session files before committing
+- ✅ Preserves conversation structure and content
+- ✅ Keeps your original files unchanged (only committed versions are cleaned)
+
+### How It Works
+
+```bash
+# After initialization, just commit normally
+git add .claudeCodeSessions/
+git commit -m "Add conversation history"
+
+# API keys are automatically replaced with [REDACTED]
+# Your local files remain unchanged
+```
+
+### Manual Configuration
+
+If you want to manually set up the Git filter:
+
+1. Run: `Claude Code Chats Sync: Setup Git Filter for Auto-Cleaning`
+2. Or manually clean files: `Claude Code Chats Sync: Clean Sensitive Data from Session Files`
+
+### Complete Git Ignore
+
+**RECOMMENDED**: Ignore session files entirely to avoid any risk of leaking sensitive information. Uncomment this line in `.gitignore`:
+
+```gitignore
+.claudeCodeSessions/
+```
+
+This prevents accidentally committing API keys, proprietary code, private conversations, or other sensitive data to your repository.
 
 ### Syncing Across Machines
+
+> ⚠️ **WARNING**: Review the security warning above before committing session files to Git.
+
+If you choose to proceed with syncing:
 
 1. Commit the `.claudeCodeSessions/` folder (if you want to sync it)
 2. Push to GitHub
 3. Pull on another machine
 4. Run `Claude Code Chats Sync: Initialize` to create the symlink
+
+> 📖 **Detailed Documentation**: See [SENSITIVE_DATA.md](SENSITIVE_DATA.md) for more information about sensitive data protection and Git filter configuration.
 
 ## Troubleshooting
 
@@ -136,12 +246,22 @@ Windows requires administrator privileges or Developer Mode to create symlinks. 
 
 ### Already Initialized
 
-If you see "Claude Code sync already initialized", the symlink already exists. To reinitialize:
+If you have existing Claude Code session history before using this extension, the initialize command will automatically migrate it:
 
-1. Delete the old symlink:
+**What happens during migration:**
+1. Existing session files in `~/.claude/projects/{your-project}/` are detected
+2. You'll be prompted to move them to your project's `.claudeCodeSessions/` folder
+3. If you confirm, files are moved and a symlink is created in their place
+4. Your existing conversation history is preserved and now part of your project
+
+**To reinitialize:**
+1. Delete the symlink:
    ```bash
    # Windows
    rmdir "%USERPROFILE%\.claude\projects\{project-name}"
+
+   # macOS/Linux
+   rm ~/.claude/projects/{project-name}
    ```
 
 2. Run the initialize command again
