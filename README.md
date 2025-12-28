@@ -146,6 +146,102 @@ You can configure the extension in your VSCode settings:
 - `historyFolderName`: Name of the folder to store conversation history (default: `".claudeCodeSessions"`)
 - `autoInitialize`: Prompt to initialize when opening a new workspace (default: `true`)
 
+## 💰 Token Usage & Cost Considerations
+
+> ⚠️ **IMPORTANT**: When sharing session files across team members, each team member uses their own API key and incurs their own API costs.
+
+### How Token Billing Works When Sharing Sessions
+
+When you pull shared session files from Git and continue conversations:
+
+1. **Each member pays for their own usage**
+   - Every team member must configure their own API key
+   - When you continue a shared conversation, **you pay for all new tokens** generated
+   - The original creator's API key is **never** used (unless you explicitly configure the same key)
+
+2. **Context window considerations**
+   - Claude Code loads the **full conversation history** from shared sessions
+   - Long shared conversations consume more tokens as context
+   - **Example**: A shared conversation with 50,000 tokens will consume ~50,000 input tokens each time a new team member continues it
+
+3. **No double billing**
+   - Historical messages are **not re-processed** or re-billed
+   - Only new messages and the full context (including history) are sent to the API
+   - You pay for the input context + new messages, not for re-running the entire conversation
+
+### Cost-Saving Best Practices
+
+1. **Generate conversation summaries before sharing** ⭐ **RECOMMENDED**
+
+   Before committing session files to Git, ask Claude Code to generate a summary of the conversation. This allows other team members to understand the context without loading the entire conversation history.
+
+   **Recommended prompt to use at the end of valuable conversations**:
+
+   ```
+   Please provide a structured summary of this conversation that I can share with my team. Include:
+   1. Main topic: What we discussed/implement
+   2. Key decisions: Important choices made and why
+   3. Code changes: Files modified and the purpose of each change
+   4. Technical details: Architecture patterns, approaches, or considerations
+   5. Open issues: Unresolved questions, TODOs, or areas needing further work
+   6. Context for continuation: Brief context someone would need to continue this work
+
+   Format the summary in a way that's easy to copy and share.
+   ```
+
+   **How to use the summary**:
+   - The summary will be included at the end of the session file (visible to team members who pull the changes)
+   - Team members can open the session file in VSCode and read the summary at the end
+   - They can then copy the summary and start a fresh conversation with that context
+   - No need to edit commit messages - the summary travels with the session file itself
+
+   **Example workflow**:
+
+   ```
+   # 1. At the end of your conversation, use the summary prompt
+   # 2. Claude Code generates the summary and adds it to the session
+   # 3. Commit the session file normally
+   git add .claudeCodeSessions/
+   git commit -m "Add JWT authentication implementation session"
+
+   # 4. Other team members pull and can:
+   #    - Open .claudeCodeSessions/session-abc123.jsonl
+   #    - Read the summary at the end
+   #    - Start a new conversation with the summary as context
+   ```
+
+   **Why this saves costs**: Instead of loading 50,000+ tokens of conversation history, team members can read a ~500 token summary at the end of the session file and start fresh conversations with that context.
+
+2. **Start new conversations when possible**
+   - For new questions or tasks, start fresh instead of continuing long shared sessions
+   - Use conversation summaries to provide context to Claude Code
+   - Example: "Continuing the JWT auth work from the shared session. We implemented refresh token rotation. Now I need to add token blacklisting."
+   - This minimizes context window usage significantly
+
+3. **Archive old sessions**
+   - Move completed conversations to a separate archive folder
+   - Only keep active/relevant sessions in `.claudeCodeSessions/`
+
+4. **Use branches for experimental work**
+   - Create feature branches for experimental conversations
+   - Only merge valuable discussions to main
+
+5. **Monitor your usage**
+   - Check your Claude API dashboard regularly
+   - Be aware that continuing long conversations costs more due to context size
+
+### Example Scenario
+
+```
+Team member A creates a conversation (costs $1 in tokens)
+Team member B pulls the session and continues it
+  -> B pays for: 50,000 tokens (context) + new messages
+Team member C pulls and continues
+  -> C pays for: 55,000 tokens (context) + new messages
+```
+
+Each team member uses their own API key and their own billing, with costs scaling based on the conversation length when they join.
+
 ## Version Control
 
 > ⚠️ **SECURITY WARNING**: Before adding `.claudeCodeSessions/` to Git, be aware that session files may contain sensitive information including:
