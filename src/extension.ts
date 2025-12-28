@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { execSync } from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Claude Code Sync extension is now active!');
@@ -28,7 +29,42 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
-    context.subscriptions.push(initializeCommand, openFolderCommand, checkStatusCommand);
+    const setupFilterCommand = vscode.commands.registerCommand(
+        'claudeCodeSync.setupFilter',
+        async () => {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return;
+            }
+            await setupGitFilter(workspaceFolder.uri.fsPath);
+        }
+    );
+
+    const cleanSessionsCommand = vscode.commands.registerCommand(
+        'claudeCodeSync.cleanSessions',
+        async () => {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return;
+            }
+
+            const answer = await vscode.window.showWarningMessage(
+                'This will clean sensitive data (API keys) from all session files in your project.\n\n' +
+                'The original files will be modified. Make sure you have a backup if needed.\n\n' +
+                'Continue?',
+                'Clean',
+                'Cancel'
+            );
+
+            if (answer === 'Clean') {
+                await cleanSessionFiles(workspaceFolder.uri.fsPath);
+            }
+        }
+    );
+
+    context.subscriptions.push(initializeCommand, openFolderCommand, checkStatusCommand, setupFilterCommand, cleanSessionsCommand);
 
     // Auto-initialize on workspace open if enabled
     const config = vscode.workspace.getConfiguration('claudeCodeSync');
@@ -172,6 +208,9 @@ async function initializeClaudeSync(): Promise<void> {
         // Add to .gitignore if not present
         await addToGitIgnore(projectPath);
 
+        // Setup Git filter for automatic cleaning
+        await setupGitFilter(projectPath, false); // false = don't show success message again
+
     } catch (error: any) {
         vscode.window.showErrorMessage(
             `Failed to initialize Claude Code Chats Sync: ${error.message}`
@@ -295,7 +334,11 @@ function updateStatusBar(statusBarItem: vscode.StatusBarItem): void {
 }
 
 /**
- * Add history folder to .gitignore
+ * Add history folder to .gitignore with comment about Git filter
+ *
+ * Always adds the folder to .gitignore (commented by default).
+ * Users can uncomment if they want to ignore session files,
+ * or leave commented if using Git filter for safe sharing.
  */
 async function addToGitIgnore(projectPath: string): Promise<void> {
     const gitignorePath = path.join(projectPath, '.gitignore');
@@ -308,14 +351,17 @@ async function addToGitIgnore(projectPath: string): Promise<void> {
             content = fs.readFileSync(gitignorePath, 'utf-8');
         }
 
-        const ignoreLine = `${folderName}/`;
+        const ignoreEntry = `# Claude Code conversation history
+# Uncomment the line below to ignore session files, OR configure Git filter for safe sharing
+# ${folderName}/`;
 
-        if (!content.includes(ignoreLine)) {
+        // Only add if not already present
+        if (!content.includes(`# ${folderName}/`) && !content.includes(`${folderName}/`)) {
             if (content && !content.endsWith('\n')) {
                 content += '\n';
             }
-            content += `\n# Claude Code conversation history\n${ignoreLine}\n`;
-            fs.writeFileSync(gitignorePath, content);
+            content += `\n${ignoreEntry}\n`;
+            fs.writeFileSync(gitignorePath, content, 'utf-8');
         }
     } catch (error) {
         // Ignore errors (no .git or no write permission)
@@ -347,6 +393,224 @@ async function moveDirectorySync(src: string, dest: string): Promise<void> {
 
     // Remove source directory after successful copy
     fs.rmSync(src, { recursive: true, force: true });
+}
+
+/**
+ * Clean sensitive information from session file content
+ *
+ * This removes API keys and other sensitive data while preserving
+ * the conversation structure for safe Git sharing.
+ */
+function cleanSensitiveData(content: string): string {
+    // Pattern for Anthropic API keys (normal format)
+    const apiKeyPattern = /"primaryApiKey"\s*:\s*"sk-ant-[^"]*"/g;
+
+    // Pattern for API keys within escaped JSON strings (like in tool results)
+    const apiKeyPatternEscaped = /\\"primaryApiKey\\":\s*\\"sk-ant-[^"]*\\"/g;
+
+    // Pattern for ANTHROPIC_AUTH_TOKEN (escaped format: \"ANTHROPIC_AUTH_TOKEN\": \"token\")
+    const authTokenPatternEscaped = /\\"ANTHROPIC_AUTH_TOKEN\\"\\s*:\\s*\\"[^"]*\\"/g;
+
+    // Pattern for other API keys
+    const genericApiKeyPattern = /"(apiKey|api_key|authorization|token|bearer)"\s*:\s*"[^"]*"/gi;
+
+    // Clean Anthropic API keys (normal format)
+    let cleaned = content.replace(apiKeyPattern, '"primaryApiKey": "[REDACTED]"');
+
+    // Clean Anthropic API keys (escaped format in nested JSON)
+    cleaned = cleaned.replace(apiKeyPatternEscaped, '\\"primaryApiKey\\": \\"[REDACTED]\\"');
+
+    // Clean ANTHROPIC_AUTH_TOKEN (escaped format)
+    cleaned = cleaned.replace(authTokenPatternEscaped, '\\"ANTHROPIC_AUTH_TOKEN\\": \\"[REDACTED]\\"');
+
+    // Clean other API keys
+    cleaned = cleaned.replace(genericApiKeyPattern, '"$1": "[REDACTED]"');
+
+    return cleaned;
+}
+
+/**
+ * Clean all session files in the history folder
+ *
+ * This creates a cleaned version of all session files that can be
+ * safely committed to Git while keeping the original files intact.
+ */
+async function cleanSessionFiles(projectPath: string): Promise<void> {
+    const historyFolder = getHistoryFolderPath(projectPath);
+
+    if (!fs.existsSync(historyFolder)) {
+        vscode.window.showErrorMessage('History folder does not exist');
+        return;
+    }
+
+    const files = fs.readdirSync(historyFolder).filter(f => f.endsWith('.jsonl'));
+
+    if (files.length === 0) {
+        vscode.window.showInformationMessage('No session files to clean');
+        return;
+    }
+
+    let cleanedCount = 0;
+    const withProgress = vscode.window.withProgress;
+
+    await withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Cleaning session files...',
+            cancellable: false
+        },
+        async () => {
+            for (const file of files) {
+                const filePath = path.join(historyFolder, file);
+                const content = fs.readFileSync(filePath, 'utf-8');
+                const cleaned = cleanSensitiveData(content);
+
+                // Write cleaned content back to file
+                fs.writeFileSync(filePath, cleaned, 'utf-8');
+                cleanedCount++;
+            }
+        }
+    );
+
+    vscode.window.showInformationMessage(
+        `✅ Cleaned ${cleanedCount} session file(s). Sensitive data has been redacted.`
+    );
+}
+
+/**
+ * Setup Git filter for automatic cleaning on commit
+ *
+ * This configures Git to automatically clean sensitive data from
+ * session files when they are committed.
+ *
+ * @param projectPath - The project root path
+ * @param showMessage - Whether to show success message (default: true)
+ */
+async function setupGitFilter(projectPath: string, showMessage: boolean = true): Promise<void> {
+    const config = vscode.workspace.getConfiguration('claudeCodeSync');
+    const folderName = config.get('historyFolderName', '.claudeCodeSessions');
+
+    try {
+        // Check if we're in a Git repository
+        const gitDir = path.join(projectPath, '.git');
+        if (!fs.existsSync(gitDir)) {
+            vscode.window.showWarningMessage(
+                'Not a Git repository. Git filter will not be configured.'
+            );
+            return;
+        }
+
+        // Create the clean filter script in workspace (committed to repo)
+        const filterScriptPath = path.join(projectPath, '.gitfilters', 'clean-sessions.js');
+        const filterDir = path.dirname(filterScriptPath);
+
+        if (!fs.existsSync(filterDir)) {
+            fs.mkdirSync(filterDir, { recursive: true });
+        }
+
+        const filterScript = `#!/usr/bin/env node
+const fs = require('fs');
+
+// Pattern for Anthropic API keys (normal format)
+const apiKeyPattern = /"primaryApiKey"\\s*:\\s*"sk-ant-[^"]*"/g;
+
+// Pattern for API keys within escaped JSON strings
+const apiKeyPatternEscaped = /\\\\\\"primaryApiKey\\\\\\"\\\\s*:\\\\\\s*\\\\\\"sk-ant-[^"]*\\\\\\"/g;
+
+// Pattern for ANTHROPIC_AUTH_TOKEN (escaped format: \\"ANTHROPIC_AUTH_TOKEN\\": \\"token\\")
+const authTokenPatternEscaped = /\\\\"ANTHROPIC_AUTH_TOKEN\\\\"\\\\s*:\\\\\\s*\\\\"[^"]*\\\\"/g;
+
+// Pattern for other API keys
+const genericApiKeyPattern = /"(apiKey|api_key|authorization|token|bearer)"\\s*:\\s*"[^"]*"/gi;
+
+let data = '';
+process.stdin.setEncoding('utf8');
+
+process.stdin.on('data', (chunk) => {
+    data += chunk;
+});
+
+process.stdin.on('end', () => {
+    let cleaned = data.replace(apiKeyPattern, '"primaryApiKey": "[REDACTED]"');
+    cleaned = cleaned.replace(apiKeyPatternEscaped, '\\\\\\"primaryApiKey\\\\\\": \\\\"[REDACTED]\\\\"');
+    cleaned = cleaned.replace(authTokenPatternEscaped, '\\\\\\"ANTHROPIC_AUTH_TOKEN\\\\\\": \\\\"[REDACTED]\\\\"');
+    cleaned = cleaned.replace(genericApiKeyPattern, '"$1": "[REDACTED]"');
+    process.stdout.write(cleaned);
+});
+`;
+
+        fs.writeFileSync(filterScriptPath, filterScript, 'utf-8');
+
+        // Make it executable on Unix-like systems
+        if (process.platform !== 'win32') {
+            try {
+                fs.chmodSync(filterScriptPath, 0o755);
+            } catch (e) {
+                // Ignore permission errors
+            }
+        }
+
+        // Configure Git to use the filter in .gitconfig (project-level, committed to repo)
+        const gitConfigPath = path.join(projectPath, '.gitconfig');
+
+        let gitConfig = '';
+        if (fs.existsSync(gitConfigPath)) {
+            gitConfig = fs.readFileSync(gitConfigPath, 'utf-8');
+        }
+
+        if (!gitConfig.includes('[filter "claude-clean"]')) {
+            if (gitConfig && !gitConfig.endsWith('\n')) {
+                gitConfig += '\n';
+            }
+            gitConfig += `[filter "claude-clean"]
+\tclean = node .gitfilters/clean-sessions.js
+`;
+            fs.writeFileSync(gitConfigPath, gitConfig, 'utf-8');
+        }
+
+        // Configure the filter in local Git config (this actually makes it work)
+        try {
+            execSync(
+                `git config filter.claude-clean.clean "node .gitfilters/clean-sessions.js"`,
+                { cwd: projectPath, stdio: 'pipe' }
+            );
+        } catch (error: any) {
+            vscode.window.showWarningMessage(
+                `Failed to configure local Git filter: ${error.message}`
+            );
+            // Don't return here, as .gitconfig was created successfully
+        }
+
+        // Configure Git to use the filter
+        const gitAttributesPath = path.join(projectPath, '.gitattributes');
+
+        let gitAttributes = '';
+        if (fs.existsSync(gitAttributesPath)) {
+            gitAttributes = fs.readFileSync(gitAttributesPath, 'utf-8');
+        }
+
+        const filterLine = `${folderName}/*.jsonl filter=claude-clean`;
+
+        if (!gitAttributes.includes(filterLine)) {
+            if (gitAttributes && !gitAttributes.endsWith('\n')) {
+                gitAttributes += '\n';
+            }
+            gitAttributes += `\n# Claude Code sessions - clean sensitive data on commit\n${filterLine}\n`;
+            fs.writeFileSync(gitAttributesPath, gitAttributes, 'utf-8');
+        }
+
+        if (showMessage) {
+            vscode.window.showInformationMessage(
+                '✅ Git filter configured. Session files will be automatically cleaned on commit.\n\n' +
+                'Note: Original files remain unchanged. Only committed versions are cleaned.'
+            );
+        }
+
+    } catch (error: any) {
+        vscode.window.showErrorMessage(
+            `Failed to setup Git filter: ${error.message}`
+        );
+    }
 }
 
 export function deactivate() {

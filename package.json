@@ -50,6 +50,16 @@
         "command": "claudeCodeSync.checkStatus",
         "title": "Check Claude Code Chats Sync Status",
         "category": "Claude Code Chats Sync"
+      },
+      {
+        "command": "claudeCodeSync.setupFilter",
+        "title": "Setup Git Filter for Auto-Cleaning",
+        "category": "Claude Code Chats Sync"
+      },
+      {
+        "command": "claudeCodeSync.cleanSessions",
+        "title": "Clean Sensitive Data from Session Files",
+        "category": "Claude Code Chats Sync"
       }
     ],
     "configuration": {

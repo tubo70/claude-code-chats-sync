@@ -5,4 +5,4 @@ out/
 dist/
 
 # Claude Code conversation history (contains API keys and sensitive data)
-.claudeCodeSessions/
+# .claudeCodeSessions/
