@@ -1,0 +1,33 @@
+# Source code
+src/**
+tsconfig.json
+
+# VSCode config
+.vscode/**
+.vscode-test/**
+
+# Dependencies
+node_modules/**
+package-lock.json
+
+# Development files
+.eslintrc.json
+*.log
+
+# Git
+.git/**
+.gitignore
+
+# Sensitive data
+.claudeCodeSessions/**
+
+# Large/unused assets
+icon1024.png
+
+# Documentation (optional - keep only if needed for marketplace)
+FILE_LOCATIONS.md
+PLATFORM_NAMING.md
+SENSITIVE_DATA.md
+
+# Build artifacts
+**/*.map

@@ -1,0 +1,2 @@
+[filter "claude-clean"]
+	clean = node .gitfilters/clean-sessions.js

@@ -1,0 +1,3 @@
+
+# Claude Code sessions - clean sensitive data on commit
+.claudeCodeSessions/*.jsonl filter=claude-clean
