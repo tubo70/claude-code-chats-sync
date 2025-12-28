@@ -106,24 +106,52 @@ async function initializeClaudeSync(): Promise<void> {
     const symlinkPath = path.join(claudeProjectsDir, normalizedPath);
 
     try {
-        // Check if history folder exists
-        if (!fs.existsSync(historyFolder)) {
-            fs.mkdirSync(historyFolder, { recursive: true });
-            vscode.window.showInformationMessage(`Created folder: ${historyFolder}`);
-        }
-
         // Check if symlink already exists
         if (fs.existsSync(symlinkPath)) {
             const stats = fs.lstatSync(symlinkPath);
             if (stats.isSymbolicLink()) {
+                // Already initialized with a symlink
                 vscode.window.showInformationMessage('Claude Code Chats Sync already initialized');
                 return;
+            } else if (stats.isDirectory()) {
+                // Existing real directory - user has used Claude Code before
+                const files = fs.readdirSync(symlinkPath);
+                const sessionFiles = files.filter(f => f.endsWith('.jsonl'));
+
+                if (sessionFiles.length > 0) {
+                    const answer = await vscode.window.showWarningMessage(
+                        `Found ${sessionFiles.length} existing Claude Code session(s) in Claude's storage.\n\n` +
+                        `Move them to your project folder?`,
+                        'Move to Project',
+                        'Cancel'
+                    );
+
+                    if (answer === 'Move to Project') {
+                        // Move existing directory to project folder
+                        await moveDirectorySync(symlinkPath, historyFolder);
+                        vscode.window.showInformationMessage(
+                            `✅ Moved ${sessionFiles.length} session(s) to project folder!`
+                        );
+                    } else {
+                        return;
+                    }
+                } else {
+                    // Empty directory, just remove it
+                    fs.rmSync(symlinkPath, { recursive: true, force: true });
+                }
             } else {
+                // It's a file, not a directory - error
                 vscode.window.showErrorMessage(
-                    `A file/folder already exists at: ${symlinkPath}`
+                    `A file exists at Claude Code location: ${symlinkPath}`
                 );
                 return;
             }
+        }
+
+        // Create history folder if it doesn't exist
+        if (!fs.existsSync(historyFolder)) {
+            fs.mkdirSync(historyFolder, { recursive: true });
+            vscode.window.showInformationMessage(`Created folder: ${historyFolder}`);
         }
 
         // Ensure .claude/projects directory exists
@@ -131,9 +159,7 @@ async function initializeClaudeSync(): Promise<void> {
             fs.mkdirSync(claudeProjectsDir, { recursive: true });
         }
 
-        // Create symbolic link
-        // On Windows: use 'junction' for directory compatibility
-        // On Linux/Mac: use 'dir' for symbolic link
+        // Create symbolic link from Claude location to project folder
         const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
         fs.symlinkSync(historyFolder, symlinkPath, symlinkType);
 
@@ -294,6 +320,33 @@ async function addToGitIgnore(projectPath: string): Promise<void> {
     } catch (error) {
         // Ignore errors (no .git or no write permission)
     }
+}
+
+/**
+ * Move directory recursively (handles cross-device moves)
+ */
+async function moveDirectorySync(src: string, dest: string): Promise<void> {
+    // Create destination directory
+    fs.mkdirSync(dest, { recursive: true });
+
+    // Recursively copy all files and subdirectories
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            // Recursively move subdirectory
+            await moveDirectorySync(srcPath, destPath);
+        } else {
+            // Copy file
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+
+    // Remove source directory after successful copy
+    fs.rmSync(src, { recursive: true, force: true });
 }
 
 export function deactivate() {

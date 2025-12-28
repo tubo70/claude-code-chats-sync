@@ -12,6 +12,11 @@ All notable changes to the "Claude Code Chats Sync" extension will be documented
 - Initialize sync functionality for your workspace
 - Open Claude Code chats folder directly from VSCode
 - Check sync status to see if sync is active
+- **Migration support**: Automatically detect and migrate existing Claude Code sessions when initializing
+  - When existing sessions are found in Claude's storage, users can choose to move them to the project folder
+  - Handles cross-device moves (e.g., between different drives on Windows)
+  - Preserves all session files and metadata
+  - Works correctly with active sessions
 
 #### Configuration
 - Added `claudeCodeSync.historyFolderName` setting to customize the folder name for storing chat history (default: `.claudeCodeSessions`)
