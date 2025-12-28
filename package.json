@@ -3,7 +3,7 @@
   "displayName": "Claude Code Chats Sync",
   "description": "Sync Claude Code chat sessions within your project",
   "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "publisher": "tubo",
   "engines": {
     "vscode": "^1.85.0"
   },

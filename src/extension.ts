@@ -54,14 +54,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 /**
  * Normalize project path to Claude Code format
- * Converts: D:\Projects\MyProject -> d--Projects-MyProject
+ *
+ * Windows:   D:\Projects\MyProject -> d--Projects-MyProject
+ * Linux/Mac: /home/user/projects/my-project -> home-user-projects-my-project
  */
 function normalizeProjectPath(projectPath: string): string {
-    return projectPath
-        .replace(/\\/g, '-')
-        .replace(/:/g, '-')
-        .replace(/^\s*-+/, '') // Remove leading dashes
-        .toLowerCase();
+    if (process.platform === 'win32') {
+        // Windows: Replace backslashes and colons with dashes, preserve case
+        return projectPath
+            .replace(/\\/g, '-')
+            .replace(/:/g, '-');
+    } else {
+        // Linux/Mac: Replace forward slashes with dashes, preserve case
+        return projectPath
+            .replace(/^\//, '')      // Remove leading slash
+            .replace(/\//g, '-');    // Replace remaining slashes with dashes
+    }
 }
 
 /**
@@ -123,8 +131,11 @@ async function initializeClaudeSync(): Promise<void> {
             fs.mkdirSync(claudeProjectsDir, { recursive: true });
         }
 
-        // Create symbolic link (junction on Windows)
-        fs.symlinkSync(historyFolder, symlinkPath, 'junction');
+        // Create symbolic link
+        // On Windows: use 'junction' for directory compatibility
+        // On Linux/Mac: use 'dir' for symbolic link
+        const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
+        fs.symlinkSync(historyFolder, symlinkPath, symlinkType);
 
         vscode.window.showInformationMessage(
             `✅ Claude Code Chats Sync initialized!\n` +
