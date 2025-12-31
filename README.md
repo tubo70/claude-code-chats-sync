@@ -1,4 +1,5 @@
 # Claude Code Chats Sync
+[中文版](README.zh-CN.md)
 
 [![Version](https://img.shields.io/visual-studio-marketplace/v/tubo.claude-code-chats-sync)](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/tubo.claude-code-chats-sync)](https://marketplace.visualstudio.com/items?itemName=tubo.claude-code-chats-sync)
